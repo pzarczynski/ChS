@@ -1,36 +1,17 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jun  2 09:05:20 2024
-
-@author: notuser
-"""
 import scipy.sparse
-from scipy.sparse import csc_matrix, csr_matrix
-
-try:
-    import cupy as np
-    from cupyx.scipy.sparse.linalg import eigsh
-
-    USE_CUDA = True
-except ImportError:
-    import numpy as np
-    from scipy.sparse.linalg import eigsh
-
-    USE_CUDA = False
+from scipy.sparse import csc_matrix
+from scipy.sparse.linalg import eigsh
+import numpy as np
 
 
-def sparsecov(a):
-    a = csr_matrix(a).astype(np.float32)
-    c = np.array((a.T @ a).toarray())
+def sparse_cov(a):
+    a = csc_matrix(a).astype(np.float32)
+    c = (a.T @ a).toarray()
 
-    a = np.array(a.toarray())
+    a = a.toarray()
     m = a.mean(axis=0)
 
-    if USE_CUDA:
-        c -= 2 * np.einsum("ij,k->jk", a, m)
-    else:
-        c -= 2 * np.einsum("ij,k->jk", a, m)
+    c -= 2 * np.einsum("ij,k->jk", a, m)
 
     c += a.shape[0] * np.outer(m, m)
 
@@ -38,18 +19,13 @@ def sparsecov(a):
 
 
 def eigbase(a, k=1):
-    a = np.array(a)
     return eigsh(a, k=k)[1]
 
 
-def rand_bincsc(density, n=1000, m=1000, seed=42):
-    r = scipy.sparse.random(
-        n, m, density, "csc", random_state=np.random.default_rng(seed)
-    )
-
-    arr = (2 * r).astype(np.uint8)
-    arr.eliminate_zeros()
-    return arr
+def rand_bincsc(density, rand_state, m=1000, n=1000):
+    arr = scipy.sparse.rand(m, n, density, 'csc', random_state=rand_state)
+    arr.data[:] = 1
+    return arr.astype(np.uint8)
 
 
 def phicoef(arr, eps=1e-7):

@@ -7,19 +7,31 @@ from bs4 import BeautifulSoup
 from fire import Fire
 from natsort import natsorted
 from tqdm import tqdm
+import re
+import yaml
 
-URL = "https://database.nikonoel.fr/"
+with open("config.yaml") as cf:
+    config = yaml.load(cf, Loader=yaml.Loader)
+
+URL = config['url']
+URL_REGEX = re.compile(config['url_regex'])
 
 
-def geturls(url):
+def get_urls(url, pattern):
+    """get all urls from a given page"""
+    
     r = requests.get(url)
     soup = BeautifulSoup(r.text, "html.parser")
 
     for tag in soup.find_all("a"):
-        yield tag.get("href")
+        address = tag.get("href")
+        if re.match(pattern, address):
+            yield address
 
 
 async def download(url, session, path):
+    """asynchronously download the file to the specified path"""
+    
     r = await session.get(url)
 
     filename = url.split("/")[-1]
@@ -36,8 +48,8 @@ async def download(url, session, path):
                 f.write(data)
 
 
-def main(path=os.getcwd()):
-    urls = filter(lambda x: x.endswith(".zip"), geturls(URL))
+def main(path='.'):
+    urls = get_urls(URL, URL_REGEX)
     urls = natsorted(urls, reverse=True)
 
     # display sorted list of retrievable archives
@@ -47,7 +59,7 @@ def main(path=os.getcwd()):
     indices = map(int, input("> ").split())
 
     # TODO move this out??
-    async def downloadall():
+    async def download_all():
         s = aiohttp.ClientSession()
         tasks = []
 
@@ -62,7 +74,7 @@ def main(path=os.getcwd()):
         await s.close()
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(downloadall())
+    loop.run_until_complete(download_all())
 
 
 if __name__ == "__main__":
