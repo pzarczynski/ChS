@@ -1,38 +1,45 @@
-import scipy.sparse
-from scipy.sparse import csc_matrix
-from scipy.sparse.linalg import eigsh
+import os
+
 import numpy as np
+import scipy.sparse
+from dotenv import load_dotenv
+from scipy.sparse import csc_matrix
+from tqdm import tqdm
+
+load_dotenv()
+USE_CUDA = int(os.environ.get("CHS_PCE_USE_CUDA", 0))
 
 
-def sparse_cov(a):
-    a = csc_matrix(a).astype(np.float32)
-    c = (a.T @ a).toarray()
-
-    a = a.toarray()
-    m = a.mean(axis=0)
-
-    c -= 2 * np.einsum("ij,k->jk", a, m)
-
-    c += a.shape[0] * np.outer(m, m)
-
-    return c
+if USE_CUDA:
+    import cupy as cp
+    from cupyx.scipy.sparse.linalg import eigsh
+else:
+    from scipy.sparse.linalg import eigsh
 
 
-def eigbase(a, k=1):
-    return eigsh(a, k=k)[1]
+def eigvec(a, k=1):
+    if USE_CUDA:
+        a = cp.array(a)
+
+    b = eigsh(a, k=k)[1]
+
+    return b.get() if USE_CUDA else b
 
 
-def rand_bincsc(density, rand_state, m=1000, n=1000):
-    arr = scipy.sparse.rand(m, n, density, 'csc', random_state=rand_state)
+def randb_csc(density, rand_state, m=1000, n=1000):
+    arr = scipy.sparse.rand(m, n, density, "csc", random_state=rand_state)
     arr.data[:] = 1
     return arr.astype(np.uint8)
 
 
-def phicoef(arr, eps=1e-7):
+def phicoef(arr, eps=1e-7, status=False):
     mat = csc_matrix(arr).astype(np.uint8)
     n, m = mat.shape
 
     coef = np.empty((m, m), dtype=np.float32)
+
+    if status:
+        bar = tqdm(total=m * (m + 1) // 2)
 
     for i, (s1, r1) in enumerate(zip(mat.indptr, mat.indptr[1:])):
         v1 = set(mat.indices[s1:r1])
@@ -50,5 +57,11 @@ def phicoef(arr, eps=1e-7):
 
             coef[j, i] = coef[i, j]
             j += 1
+
+            if status:
+                bar.update(1)
+
+    if status:
+        bar.close()
 
     return coef
