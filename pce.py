@@ -1,7 +1,7 @@
+import numpy as np
 import scipy.sparse
 from scipy.sparse import csc_matrix
 from scipy.sparse.linalg import eigsh
-import numpy as np
 from tqdm import tqdm
 
 
@@ -20,14 +20,14 @@ def indices_tocsc(indices, shape=None):
     row_ind = [j for j, c in enumerate(indices) for _ in c]
     data = np.ones(len(row_ind), dtype=np.uint8)
     return csc_matrix((data, (row_ind, col_ind)), shape=shape)
-    
+
 
 def phicoef(mat, status=False):
     mat = csc_matrix(mat).astype(np.uint8)
     n, m = mat.shape
 
     coef = np.empty((m, m), dtype=np.float32)
-    
+
     if status:
         bar = tqdm(total=m * (m + 1) // 2)
 
@@ -40,16 +40,16 @@ def phicoef(mat, status=False):
 
             # https://en.wikipedia.org/wiki/Phi_coefficient#Definition
             n11, n01, n10 = len(v1 & v2), len(v1), len(v2)
-            
+
             d = n01 * n10 * (n - n01) * (n - n10)
-            
+
             coef[i, j] = (n * n11 - n01 * n10) / np.sqrt(float(d)) if d else 0
             coef[j, i] = coef[i, j]
             j += 1
-            
+
             if status:
                 bar.update()
-                
+
     if status:
         bar.close()
 
