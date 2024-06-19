@@ -41,9 +41,11 @@ def bb_flip(b, orientation=chess.WHITE):
 
 def pos_toint(pos):
     colors, pieces = bitboards(pos)
-    bb = colors[pos.turn] << 64 | colors[not pos.turn]
+    colors = [colors[not pos.turn], colors[pos.turn]]
+    
+    bbs = [bb_flip(p & c, pos.turn) for p in pieces for c in colors]
 
-    return functools.reduce(lambda x, y: x << 64 | bb_flip(y, pos.turn), pieces, bb)
+    return functools.reduce(lambda x, y: x << 64 | y, bbs)
 
 
 def pos_tosparse(pos):
