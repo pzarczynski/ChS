@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+<<<<<<< HEAD
 import scipy.sparse
 from dotenv import load_dotenv
 from scipy.sparse import csc_matrix
@@ -27,16 +28,41 @@ def eigvec(a, k=1):
 
 
 def randb_csc(density, rand_state, m=1000, n=1000):
+=======
+from tqdm import tqdm
+
+
+def eigvec(a, k=1):
+    return eigsh(a, k=k)[1]
+
+
+def randbool_csc(density, rand_state, m=1000, n=1000):
+>>>>>>> 3014f5f (Update code)
     arr = scipy.sparse.rand(m, n, density, "csc", random_state=rand_state)
     arr.data[:] = 1
     return arr.astype(np.uint8)
 
 
+<<<<<<< HEAD
 def phicoef(arr, eps=1e-7, status=False):
     mat = csc_matrix(arr).astype(np.uint8)
+=======
+def indices_tocsc(indices, shape=None):
+    col_ind = [i for c in indices for i in c]
+    row_ind = [j for j, c in enumerate(indices) for _ in c]
+    data = np.ones(len(row_ind), dtype=np.uint8)
+    return csc_matrix((data, (row_ind, col_ind)), shape=shape)
+    
+
+def phicoef(mat, status=False):
+    mat = csc_matrix(mat).astype(np.uint8)
+>>>>>>> 3014f5f (Update code)
     n, m = mat.shape
 
     coef = np.empty((m, m), dtype=np.float32)
+    
+    if status:
+        bar = tqdm(total=m * (m + 1) // 2)
 
     if status:
         bar = tqdm(total=m * (m + 1) // 2)
@@ -50,13 +76,18 @@ def phicoef(arr, eps=1e-7, status=False):
 
             # https://en.wikipedia.org/wiki/Phi_coefficient#Definition
             n11, n01, n10 = len(v1 & v2), len(v1), len(v2)
-
-            coef[i, j] = (n * n11 - n01 * n10) / (
-                np.sqrt(n01 * n10 * (n - n01) * (n - n10)) + eps
-            )
-
+            
+            d = n01 * n10 * (n - n01) * (n - n10)
+            
+            coef[i, j] = (n * n11 - n01 * n10) / np.sqrt(float(d)) if d else 0
             coef[j, i] = coef[i, j]
             j += 1
+            
+            if status:
+                bar.update()
+                
+    if status:
+        bar.close()
 
             if status:
                 bar.update(1)
