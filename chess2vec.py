@@ -2,6 +2,7 @@ import csv
 import functools
 import gzip
 from itertools import islice, zip_longest
+from functools import partial
 
 import chess
 import chess.pgn
@@ -19,6 +20,9 @@ def strip(x: str):
 
 def int2hex(x):
     return f"{x:x}"
+
+
+hex2int = partial(int, base=16)
 
 
 def games(f):
@@ -93,7 +97,7 @@ def pgn_prepare(pgn, base_path, with_labels=False):
 
 def prepared_stream(f_indices, f_labels=None):
     reader = csv.reader(f_indices, delimiter=" ")
-    indices = ((int(i, 16) for i in idx) for idx in reader)
+    indices = (list(map(hex2int, idx)) for idx in reader)
 
     yield from zip(indices, map(strip, f_labels)) if f_labels else indices
 
