@@ -93,7 +93,7 @@ def pgn_prepare(pgn, base_path, with_labels=False):
 
 def prepared_stream(f_indices, f_labels=None):
     reader = csv.reader(f_indices, delimiter=" ")
-    indices = (np.fromiter((int(i, 16) for i in idx), np.uint16) for idx in reader)
+    indices = ((int(i, 16) for i in idx) for idx in reader)
 
     yield from zip(indices, map(strip, f_labels)) if f_labels else indices
 
