@@ -1,8 +1,24 @@
+import csv
 import functools
+import gzip
+from itertools import islice, zip_longest
 
 import chess
 import chess.pgn
 import numpy as np
+from tqdm import tqdm
+
+
+def fill_uneven(x, value=None):
+    return zip(*zip_longest(*x, fillvalue=value))
+
+
+def strip(x: str):
+    return x.strip()
+
+
+def int2hex(x):
+    return f"{x:x}"
 
 
 def games(f):
@@ -42,7 +58,7 @@ def bb_flip(b, orientation=chess.WHITE):
 def pos_toint(pos):
     colors, pieces = bitboards(pos)
     colors = [colors[not pos.turn], colors[pos.turn]]
-    
+
     bbs = [bb_flip(p & c, pos.turn) for p in pieces for c in colors]
 
     return functools.reduce(lambda x, y: x << 64 | y, bbs)
@@ -58,21 +74,37 @@ def pos_stream(f):
             yield pos
 
 
-# def accumulate_apply(func, x):
-#     while x:
-#         yield x
-#         x = func(x)
+def pgn_prepare(pgn, base_path, with_labels=False):
+    if with_labels:
+        f_labels = gzip.open(base_path + "_labels", "wt")
+
+    with gzip.open(base_path + "_indices", "wt", newline="") as f_indices:
+        writer = csv.writer(f_indices, delimiter=" ")
+
+        for pos in tqdm(pos_stream(pgn), desc=pgn):
+            writer.writerow(map(int2hex, pos_tosparse(pos)))
+
+            if with_labels:
+                f_labels.write(pos.fen() + "\n")
+
+    if with_labels:
+        f_labels.close()
 
 
-# def shift64right(x):
-#     return x >> 64
+def prepared_stream(f_indices, f_labels=None):
+    reader = csv.reader(f_indices, delimiter=" ")
+    indices = (np.fromiter((int(i, 16) for i in idx), np.uint16) for idx in reader)
+
+    yield from zip(indices, map(strip, f_labels)) if f_labels else indices
 
 
-# def clip64(x):
-#     return x & 0xFFFF_FFFF_FFFF_FFFF
+def load_prepared(f_indices, f_labels=None, count=-1):
+    if f_labels:
+        indices, labels = prepared_stream(f_indices, f_labels)
+    else:
+        indices = prepared_stream(f_indices)
 
+    evened = fill_uneven(islice(indices, count), -1)
+    mat = np.fromiter(evened, dtype=np.dtype((np.int16, 32)))
 
-# def int_asarray(x):
-#     return np.fromiter(
-#         map(clip64, accumulate_apply(shift64right, x)), dtype=np.uint64
-#     )
+    return (mat, labels) if f_labels else mat

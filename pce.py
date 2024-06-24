@@ -15,38 +15,38 @@ def randbool_csc(rand_state, n, m, density):
     return arr.astype(np.uint8)
 
 
-def indices_tocsc(indices, shape=None):
-    col_ind = [i for c in indices for i in c]
-    row_ind = [j for j, c in enumerate(indices) for _ in c]
+def indices_tocsc(indices, cols=None):
+    col_ind, row_ind = [], []
+
+    for n, idx in enumerate(indices):
+        col_ind.extend(idx)
+        row_ind.extend(np.full(len(idx), n))
+
     data = np.ones(len(row_ind), dtype=np.uint8)
-    return csc_matrix((data, (row_ind, col_ind)), shape=shape)
+    shape = max(row_ind) + 1, cols if cols else (max(col_ind) + 1)
+
+    return csc_matrix((data, (row_ind, col_ind)), shape)
 
 
-def jaccard(mat, status=False):
-    mat = csc_matrix(mat).astype(np.uint8)
-    n, m = mat.shape
-
+def jaccard(mat, cols=None):
+    m = cols if cols else (np.max() + 1)
+    mat = indices_tocsc(mat + 1, m + 1)[:, 1:]
     coef = np.empty((m, m), dtype=np.float32)
 
-    if status:
-        bar = tqdm(total=m * (m + 1) // 2)
+    with tqdm(total=m * (m + 1) // 2) as bar:
+        for i, (s1, r1) in enumerate(zip(mat.indptr, mat.indptr[1:])):
+            v1 = set(mat.indices[s1:r1])
+            j = i
 
-    for i, (s1, r1) in enumerate(zip(mat.indptr, mat.indptr[1:])):
-        v1 = set(mat.indices[s1:r1])
-        j = i
+            for s2, r2 in zip(mat[:, i:].indptr, mat[:, i:].indptr[1:]):
+                v2 = set(mat.indices[s2:r2])
 
-        for s2, r2 in zip(mat[:, i:].indptr, mat[:, i:].indptr[1:]):
-            v2 = set(mat.indices[s2:r2])
+                n11, n01, n10 = len(v1 & v2), len(v1), len(v2)
+                f = n01 + n10 - n11
 
-            n11, n01, n10 = len(v1 & v2), len(v1), len(v2)
-            
-            coef[i, j] = coef[j, i] = n11 / (n01 + n10 - n11)
-            j += 1
+                coef[i, j] = coef[j, i] = (n11 / f) if f else 0
 
-            if status:
+                j += 1
                 bar.update()
-
-    if status:
-        bar.close()
 
     return coef
