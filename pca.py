@@ -1,12 +1,12 @@
 import numpy as np
 import scipy.sparse
-from scipy.sparse import csc_matrix
-from scipy.sparse.linalg import eigsh
+import scipy.linalg
 from tqdm import tqdm
 
 
-def eigvec(a, k=1):
-    return eigsh(a, k=k)[1]
+def eig(a, k=-1):
+    w, v = scipy.linalg.eigh(a)
+    return w[:k], v[:k]
 
 
 def randbool_csc(rand_state, n, m, density):
@@ -25,7 +25,7 @@ def indices_tocsc(indices, cols=None):
     data = np.ones(len(row_ind), dtype=np.uint8)
     shape = max(row_ind) + 1, cols if cols else (max(col_ind) + 1)
 
-    return csc_matrix((data, (row_ind, col_ind)), shape)
+    return scipy.sparse.csc_matrix((data, (row_ind, col_ind)), shape)
 
 
 def jaccard(mat, cols=None):

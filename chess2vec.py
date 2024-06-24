@@ -1,13 +1,19 @@
 import csv
 import functools
 import gzip
-from itertools import islice, zip_longest
 from functools import partial
+from itertools import islice, zip_longest
 
 import chess
 import chess.pgn
 import numpy as np
 from tqdm import tqdm
+
+hex2int = partial(int, base=16)
+
+
+def int2hex(x):
+    return f"{x:x}"
 
 
 def fill_uneven(x, value=None):
@@ -16,13 +22,6 @@ def fill_uneven(x, value=None):
 
 def strip(x: str):
     return x.strip()
-
-
-def int2hex(x):
-    return f"{x:x}"
-
-
-hex2int = partial(int, base=16)
 
 
 def games(f):
@@ -102,7 +101,7 @@ def prepared_stream(f_indices, f_labels=None):
     yield from zip(indices, map(strip, f_labels)) if f_labels else indices
 
 
-def load_prepared(f_indices, f_labels=None, count=-1):
+def load_prepared(f_indices, f_labels=None, count=None):
     if f_labels:
         indices, labels = prepared_stream(f_indices, f_labels)
     else:
