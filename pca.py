@@ -1,12 +1,11 @@
 import numpy as np
-import scipy.sparse
 import scipy.linalg
+import scipy.sparse
 from tqdm import tqdm
 
 
-def eig(a, k=-1):
-    w, v = scipy.linalg.eigh(a)
-    return w[:k], v[:k]
+def eig(a):
+    return scipy.linalg.eigh(a)
 
 
 def randbool_csc(rand_state, n, m, density):
@@ -28,9 +27,16 @@ def indices_tocsc(indices, cols=None):
     return scipy.sparse.csc_matrix((data, (row_ind, col_ind)), shape)
 
 
+def idxarr_tocsc(arr, cols=None):
+    if not cols:
+        cols = max(arr) + 1
+
+    return indices_tocsc(arr + 1, cols + 1)[:, 1:]
+
+
 def jaccard(mat, cols=None):
     m = cols if cols else (np.max() + 1)
-    mat = indices_tocsc(mat + 1, m + 1)[:, 1:]
+    mat = idxarr_tocsc(mat, m)
     coef = np.empty((m, m), dtype=np.float32)
 
     with tqdm(total=m * (m + 1) // 2) as bar:
