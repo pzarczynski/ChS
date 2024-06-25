@@ -34,7 +34,7 @@ def show_matrices(mats, cmaps, *args, figsize=None, **kwargs):
 
 
 def sample(rng, n, k, *args):
-    idx = rng.integers(0, n, k)
+    idx = rng.choice(n, size=k, replace=False)
     return tuple(map(lambda x: x[idx], args))
 
 
