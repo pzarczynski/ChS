@@ -3,12 +3,6 @@ import scipy.sparse
 from tqdm import tqdm
 
 
-def randb_csc(rand_state, n, m, density):
-    arr = scipy.sparse.rand(n, m, density, "csc", random_state=rand_state)
-    arr.data[:] = 1
-    return arr.astype(np.uint8)
-
-
 def indices_tocsc(indices, cols=None):
     col_ind, row_ind = [], []
 

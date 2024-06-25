@@ -2,7 +2,7 @@ import csv
 import functools
 import gzip
 from functools import partial
-from itertools import islice, zip_longest
+from itertools import islice, tee, zip_longest
 
 import chess
 import chess.pgn
@@ -94,20 +94,41 @@ def pgn_prepare(pgn, base_path, with_labels=False):
         f_labels.close()
 
 
-def prepared_stream(f_indices, f_labels=None):
+def load_prepared(f_indices, f_labels=None, count=None):
     reader = csv.reader(f_indices, delimiter=" ")
     indices = (list(map(hex2int, idx)) for idx in reader)
-
-    yield from zip(indices, map(strip, f_labels)) if f_labels else indices
-
-
-def load_prepared(f_indices, f_labels=None, count=None):
-    if f_labels:
-        indices, labels = prepared_stream(f_indices, f_labels)
-    else:
-        indices = prepared_stream(f_indices)
 
     evened = fill_uneven(islice(indices, count), -1)
     mat = np.fromiter(evened, dtype=np.dtype((np.int16, 32)))
 
-    return (mat, labels) if f_labels else mat
+    return (mat, list(map(strip, f_labels))) if f_labels else mat
+
+
+def load_binary(f_labels, return_labels=False, count=None):
+    fens, labels = tee(islice(map(strip, f_labels), count), 2)
+
+    ints = (int_asarray(pos_toint(chess.Board(f)), 12) for f in fens)
+    mat = np.fromiter(ints, dtype=np.dtype((np.uint64, 12)))
+    mat = mat.view(np.uint8)
+
+    return (mat, np.fromiter(labels, object)) if return_labels else mat
+
+
+def accumulate_apply(func, x, count):
+    for _ in range(count):
+        yield x
+        x = func(x)
+
+
+def shift64right(x):
+    return x >> 64
+
+
+def clip64(x):
+    return x & 0xFFFF_FFFF_FFFF_FFFF
+
+
+def int_asarray(x, n):
+    return np.fromiter(
+        map(clip64, accumulate_apply(shift64right, x, n)), dtype=np.uint64
+    )
